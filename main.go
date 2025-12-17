@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+
 	"github.com/Shoaibashk/SerialLink/cmd"
 )
 
@@ -11,5 +13,7 @@ var (
 
 func main() {
 	cmd.Version = Version
-	cmd.Execute()
+	if err := cmd.Execute(); err != nil {
+		os.Exit(1)
+	}
 }

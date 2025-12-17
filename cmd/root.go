@@ -42,7 +42,9 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.seriallink/config.yaml)")
 	rootCmd.PersistentFlags().Bool("verbose", false, "verbose output")
 
-	viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
+	if err := viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose")); err != nil {
+		panic(err)
+	}
 
 	// Register subcommands
 	RegisterVersionCommand(rootCmd)
@@ -74,5 +76,10 @@ func initConfig() {
 	viper.AutomaticEnv()
 
 	// If a config file is found, read it but don't fail if it doesn't exist
-	viper.ReadInConfig()
+	if err := viper.ReadInConfig(); err != nil {
+		// Only log error if it's not a config file not found error
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			fmt.Fprintf(os.Stderr, "Error reading config file: %v\n", err)
+		}
+	}
 }

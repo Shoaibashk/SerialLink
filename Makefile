@@ -1,10 +1,12 @@
-.PHONY: help build test lint install-tools ci fmt clean
+BUILD_DIR := build
+
+.PHONY: help build test coverage lint install-tools ci fmt clean
 
 help:
 	@echo "SerialLink - cross-platform serial port agent"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  build          - Build the binary"
+	@echo "  build          - Build the binary to $(BUILD_DIR)/"
 	@echo "  install        - Install the binary to \$$GOPATH/bin"
 	@echo "  test           - Run unit tests"
 	@echo "  coverage       - Run tests with coverage report"
@@ -13,21 +15,23 @@ help:
 	@echo "  vet            - Run go vet"
 	@echo "  install-tools  - Install development tools (golangci-lint)"
 	@echo "  ci             - Run all CI checks (fmt, vet, lint, test)"
-	@echo "  clean          - Remove built binaries"
+	@echo "  clean          - Remove built binaries and build directory"
 
 build:
-	go build -o seriallink ./
+	powershell -Command "if (!(Test-Path $(BUILD_DIR))) { New-Item -ItemType Directory -Path $(BUILD_DIR) }"
+	go build -o $(BUILD_DIR)\\seriallink.exe ./
 
 install:
 	go install -ldflags "-X main.Version=$(shell git describe --tags --always)" ./
 
 test:
-	go test ./... -v -race
+	go test ./... -v
 
 coverage:
-	go test ./... -v -race -coverprofile=coverage.out
-	go tool cover -html=coverage.out -o coverage.html
-	@echo "Coverage report generated: coverage.html"
+	powershell -Command "if (!(Test-Path $(BUILD_DIR))) { New-Item -ItemType Directory -Path $(BUILD_DIR) }"
+	go test ./... -v -coverprofile=$(BUILD_DIR)\\coverage.out
+	go tool cover -html=$(BUILD_DIR)\\coverage.out -o $(BUILD_DIR)\\coverage.html
+	@echo "Coverage report generated: $(BUILD_DIR)\\coverage.html"
 
 lint:
 	golangci-lint run ./...
@@ -45,4 +49,4 @@ ci: fmt vet lint test
 	@echo "All CI checks passed!"
 
 clean:
-	rm -f seriallink coverage.out coverage.html
+	powershell -Command "if (Test-Path $(BUILD_DIR)) { Remove-Item -Recurse -Force $(BUILD_DIR) }"

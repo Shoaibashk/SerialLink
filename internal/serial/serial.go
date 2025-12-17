@@ -12,9 +12,9 @@ type Serial interface {
 
 // DefaultSerial is the default implementation of the Serial interface
 type DefaultSerial struct {
+	conn     io.ReadWriteCloser
 	port     string
 	baudRate int
-	conn     io.ReadWriteCloser
 }
 
 // NewDefaultSerial creates a new DefaultSerial instance

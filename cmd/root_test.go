@@ -23,8 +23,10 @@ It provides a CLI to manage and interact with serial port connections.`,
 	cfgFile = ""
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.seriallink/config.yaml)")
 	rootCmd.PersistentFlags().Bool("verbose", false, "verbose output")
-	viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
-	
+	if err := viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose")); err != nil {
+		panic(fmt.Sprintf("Failed to bind verbose flag: %v", err))
+	}
+
 	// Re-create and register commands to avoid state persistence
 	versionCmd = &cobra.Command{
 		Use:   "version",
@@ -34,7 +36,7 @@ It provides a CLI to manage and interact with serial port connections.`,
 		},
 	}
 	rootCmd.AddCommand(versionCmd)
-	
+
 	serveCmd = &cobra.Command{
 		Use:   "serve",
 		Short: "Start the serial port agent",
@@ -44,7 +46,7 @@ It provides a CLI to manage and interact with serial port connections.`,
 			if port == "" {
 				port = viper.GetString("port")
 			}
-			
+
 			if port == "" {
 				return fmt.Errorf("port is required (set via --port flag or SERIALLINK_PORT env var)")
 			}
@@ -60,9 +62,13 @@ It provides a CLI to manage and interact with serial port connections.`,
 	}
 	rootCmd.AddCommand(serveCmd)
 	serveCmd.Flags().StringP("port", "p", "", "serial port device (e.g., /dev/ttyUSB0 or COM3)")
-	viper.BindPFlag("port", serveCmd.Flags().Lookup("port"))
+	if err := viper.BindPFlag("port", serveCmd.Flags().Lookup("port")); err != nil {
+		panic(fmt.Sprintf("Failed to bind port flag: %v", err))
+	}
 	serveCmd.Flags().IntP("baud", "b", 9600, "baud rate")
-	viper.BindPFlag("baud", serveCmd.Flags().Lookup("baud"))
+	if err := viper.BindPFlag("baud", serveCmd.Flags().Lookup("baud")); err != nil {
+		panic(fmt.Sprintf("Failed to bind baud flag: %v", err))
+	}
 }
 
 func TestRootExecute(t *testing.T) {

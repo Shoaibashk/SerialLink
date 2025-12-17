@@ -17,6 +17,9 @@ issues:
     - path: "_test\\.go"
       linters:
         - gocyclo
+    - text: "fieldalignment"
+      linters:
+        - govet
 
 linters-settings:
   gocyclo:

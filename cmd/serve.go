@@ -37,8 +37,12 @@ var serveCmd = &cobra.Command{
 func RegisterServeCommand(root *cobra.Command) {
 	root.AddCommand(serveCmd)
 	serveCmd.Flags().StringP("port", "p", "", "serial port device (e.g., /dev/ttyUSB0 or COM3)")
-	viper.BindPFlag("port", serveCmd.Flags().Lookup("port"))
+	if err := viper.BindPFlag("port", serveCmd.Flags().Lookup("port")); err != nil {
+		panic(fmt.Sprintf("Failed to bind port flag: %v", err))
+	}
 
 	serveCmd.Flags().IntP("baud", "b", 9600, "baud rate")
-	viper.BindPFlag("baud", serveCmd.Flags().Lookup("baud"))
+	if err := viper.BindPFlag("baud", serveCmd.Flags().Lookup("baud")); err != nil {
+		panic(fmt.Sprintf("Failed to bind baud flag: %v", err))
+	}
 }
