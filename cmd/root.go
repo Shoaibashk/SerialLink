@@ -1,30 +1,76 @@
+/*
+Copyright 2024 SerialLink Authors
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+// Package cmd provides the CLI commands for SerialLink using Cobra.
 package cmd
 
 import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 
+	"github.com/Shoaibashk/SerialLink/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var (
-	// Version is the application version
+	// Version is the application version (set at build time)
 	Version = "dev"
+
+	// Commit is the git commit (set at build time)
+	Commit = "none"
+
+	// BuildDate is the build date (set at build time)
+	BuildDate = "unknown"
 
 	// cfgFile is the path to the config file
 	cfgFile string
 
-	// rootCmd represents the base command when called without any subcommands
-	rootCmd = &cobra.Command{
-		Use:   "seriallink",
-		Short: "SerialLink - cross-platform serial port agent",
-		Long: `SerialLink is a cross-platform serial port agent written in Go.
-It provides a CLI to manage and interact with serial port connections.`,
-	}
+	// verbose enables verbose output
+	verbose bool
+
+	// address is the gRPC service address
+	address string
 )
+
+// rootCmd represents the base command when called without any subcommands
+var rootCmd = &cobra.Command{
+	Use:   "seriallink",
+	Short: "SerialLink - Cross-platform serial port agent",
+	Long: `SerialLink is a cross-platform serial port background service that runs on 
+Windows, Linux, and Raspberry Pi. It manages all serial hardware and exposes 
+a public gRPC API for any client - Python, C#, Node.js, Web, Mobile, or CLI.
+
+Features:
+  • Auto-detect serial ports (USB, native, Bluetooth, virtual)
+  • Open/Close ports with exclusive locking
+  • Read/Write with timeout support
+  • Real-time bidirectional streaming
+  • Hot-plug detection
+  • TLS encryption support
+  • Cross-language gRPC API
+
+Example usage:
+  seriallink serve                    Start the gRPC server
+  seriallink scan                     List available serial ports
+  seriallink version                  Show version information`,
+	SilenceUsage:  true,
+	SilenceErrors: true,
+}
 
 // Execute executes the root command
 func Execute() error {
@@ -39,47 +85,45 @@ func ExecuteContext(ctx context.Context) error {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.seriallink/config.yaml)")
-	rootCmd.PersistentFlags().Bool("verbose", false, "verbose output")
+	// Global flags
+	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default: $HOME/.seriallink/config.yaml)")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable verbose output")
+	rootCmd.PersistentFlags().StringVar(&address, "address", "localhost:50051", "gRPC service address (can also be set via SERIALLINK_ADDRESS env var)")
 
-	if err := viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose")); err != nil {
-		panic(err)
-	}
+	// Bind flags to viper
+	_ = viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
+	_ = viper.BindPFlag("address", rootCmd.PersistentFlags().Lookup("address"))
 
-	// Register subcommands
-	RegisterVersionCommand(rootCmd)
-	RegisterServeCommand(rootCmd)
+	// Bind environment variables
+	_ = viper.BindEnv("address", "SERIALLINK_ADDRESS")
 }
 
 // initConfig reads in config file and ENV variables if set
 func initConfig() {
-	if cfgFile != "" {
-		// Use config file from the flag
-		viper.SetConfigFile(cfgFile)
-	} else {
-		// Find home directory
-		home, err := os.UserHomeDir()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error finding home directory: %v\n", err)
-			return
-		}
-
-		// Search config in home directory with name ".seriallink" (without extension)
-		configDir := filepath.Join(home, ".seriallink")
-		viper.AddConfigPath(configDir)
-		viper.SetConfigType("yaml")
-		viper.SetConfigName("config")
+	if err := config.InitViper(cfgFile); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
 	}
 
-	// Read environment variables with SERIALLINK_ prefix
-	viper.SetEnvPrefix("SERIALLINK")
-	viper.AutomaticEnv()
-
-	// If a config file is found, read it but don't fail if it doesn't exist
-	if err := viper.ReadInConfig(); err != nil {
-		// Only log error if it's not a config file not found error
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			fmt.Fprintf(os.Stderr, "Error reading config file: %v\n", err)
-		}
+	if verbose {
+		fmt.Printf("Using config file: %s\n", viper.ConfigFileUsed())
 	}
+}
+
+// GetConfig returns the loaded configuration
+func GetConfig() (*config.Config, error) {
+	return config.Load()
+}
+
+// IsVerbose returns whether verbose mode is enabled
+func IsVerbose() bool {
+	return verbose || viper.GetBool("verbose")
+}
+
+// GetAddress returns the gRPC service address
+func GetAddress() string {
+	addr := viper.GetString("address")
+	if addr == "" {
+		addr = "localhost:50051"
+	}
+	return addr
 }
