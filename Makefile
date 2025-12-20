@@ -1,4 +1,6 @@
 BUILD_DIR := build
+BINARY_NAME := seriallink.exe
+SHELL := pwsh 
 
 .PHONY: help build test coverage lint install-tools ci fmt clean
 
@@ -18,8 +20,8 @@ help:
 	@echo "  clean          - Remove built binaries and build directory"
 
 build:
-	powershell -Command "if (!(Test-Path $(BUILD_DIR))) { New-Item -ItemType Directory -Path $(BUILD_DIR) }"
-	go build -o $(BUILD_DIR)\\seriallink.exe ./
+	pwsh -c "if (!(Test-Path $(BUILD_DIR))) { New-Item -ItemType Directory -Path $(BUILD_DIR) }"
+	go build -o $(BUILD_DIR)\$(BINARY_NAME) ./
 
 install:
 	go install -ldflags "-X main.Version=$(shell git describe --tags --always)" ./
@@ -28,10 +30,10 @@ test:
 	go test ./... -v
 
 coverage:
-	powershell -Command "if (!(Test-Path $(BUILD_DIR))) { New-Item -ItemType Directory -Path $(BUILD_DIR) }"
-	go test ./... -v -coverprofile=$(BUILD_DIR)\\coverage.out
-	go tool cover -html=$(BUILD_DIR)\\coverage.out -o $(BUILD_DIR)\\coverage.html
-	@echo "Coverage report generated: $(BUILD_DIR)\\coverage.html"
+	pwsh -c "if (!(Test-Path $(BUILD_DIR))) { New-Item -ItemType Directory -Path $(BUILD_DIR) }"
+	go test ./... -v -coverprofile=$(BUILD_DIR)\coverage.out
+	go tool cover -html=$(BUILD_DIR)\coverage.out -o $(BUILD_DIR)\coverage.html
+	@echo "Coverage report generated: $(BUILD_DIR)\coverage.html"
 
 lint:
 	golangci-lint run ./...
@@ -49,4 +51,4 @@ ci: fmt vet lint test
 	@echo "All CI checks passed!"
 
 clean:
-	powershell -Command "if (Test-Path $(BUILD_DIR)) { Remove-Item -Recurse -Force $(BUILD_DIR) }"
+	pwsh -c "if (Test-Path $(BUILD_DIR)) { Remove-Item -Recurse -Force $(BUILD_DIR) }"
