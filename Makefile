@@ -49,6 +49,10 @@ install-tools:
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+	scoop install protobuf
+	scoop install grpcurl
+	scoop install make
+	@echo Development tools installed
 
 ci: fmt vet lint
 	@echo All CI checks passed!
