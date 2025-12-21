@@ -1,178 +1,214 @@
-# SerialLink
+# 🔌 SerialLink
+<!-- cSpell:ignore UART Shoaibashk SerialLink seriallink SERIALLINK -->
 
-A professional-grade, cross-platform serial port management service providing robust hardware abstraction and remote access capabilities.
+[![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=flat&logo=go)](https://go.dev)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Shoaibashk/SerialLink/pulls)
 
-## Overview
+> **A cross-platform serial port management service with gRPC API**
 
-SerialLink is an enterprise-ready background service that provides unified management of serial port devices across Windows, Linux, and embedded systems. It exposes a high-performance gRPC API enabling seamless integration with applications written in any language, including Python, C#, Node.js, JavaScript, and Go.
-
-The service architecture separates hardware management from client applications, enabling centralized port control, concurrent access management, and secure network exposure.
+SerialLink runs as a background service, managing serial port connections on
+**Windows, Linux, and Raspberry Pi**.
+It exposes a high-performance gRPC API so any language—Python, C#, Node.js,
+Go—can talk to your hardware over the network.
 
 ```text
-           Client Applications (Python | C# | Node.js | Go | CLI)
-                              |
-                              | gRPC / Standard Protocol
-                              |
-                    +-------------------+
-                    |   SerialLink       |
-                    |   Agent Service   |
-                    | (Background)      |
-                    +-------------------+
-                              |
-                              | USB / COM / UART
-                              |
-                    Serial Port Devices
+Your App (any language)  ──gRPC──▶  SerialLink  ──USB/UART──▶  Hardware
 ```
 
-## Key Capabilities
+---
 
-### Serial Port Management
+## ✨ Why SerialLink?
 
-- **Port Discovery** - Automated detection of USB, native COM, Bluetooth, and virtual serial ports
-- **Lifecycle Control** - Secure open/close operations with exclusive port access locking
-- **Data Operations** - Configurable read/write operations with timeout handling
-- **Real-time Streaming** - Bidirectional data streaming with server-initiated notifications
-- **Hot-swap Detection** - Dynamic port availability monitoring
+| Problem | SerialLink Solution |
+| --------- | --------------------- |
+| Port locked to one process | 🔒 Session locks + clean handoffs |
+| Different APIs per language/platform | ⚡ One gRPC API, works everywhere |
+| No remote access to serial devices | 🌐 Network-accessible serial ports |
+| Complex port configuration | 🛠️ Simple CLI + YAML config |
 
-### Remote Access API
+---
 
-- **gRPC Protocol** - High-performance, language-agnostic service interface
-- **Streaming Capabilities** - Server, client, and bidirectional streaming models
-- **Protocol Flexibility** - Support for multiple transport layers
+## 🚀 Quick Start
 
-### Security & Access Control
+```bash
+# Install
+go install github.com/Shoaibashk/SerialLink@latest
 
-- **Transport Security** - TLS/SSL encryption for network communications
-- **Access Control** - Exclusive port locking mechanisms
-- **Network Configuration** - Granular service endpoint binding
-- **Audit Logging** - Complete operational event logging
+# Scan for ports
+seriallink scan
 
-### System Integration
+# Start the server
+seriallink serve
 
-- **Windows Service** - Native Windows service installation and management
-- **systemd Support** - Linux and Raspberry Pi daemon integration
-- **Auto-launch** - System boot integration
-- **Operational Logging** - Detailed logging for troubleshooting and monitoring
-
-## Architecture & Usage
-
-### Service Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Client Layer                         │
-│  (Python | C# | Node.js | Go | Web | Mobile | CLI)    │
-└────────────────────┬────────────────────────────────────┘
-                     │ gRPC Protocol
-                     ▼
-┌─────────────────────────────────────────────────────────┐
-│              SerialLink Agent Service                   │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │         gRPC Server (api/grpc_server.go)        │   │
-│  │  - ListPorts, OpenPort, ClosePort               │   │
-│  │  - Read, Write Operations                       │   │
-│  │  - Bidirectional Streaming                      │   │
-│  │  - Port Configuration & Status                  │   │
-│  └────────────┬────────────────────────────────────┘   │
-│               │                                          │
-│  ┌────────────▼────────────────────────────────────┐   │
-│  │     Serial Port Manager (internal/serial/)      │   │
-│  │  - Session Management                           │   │
-│  │  - Port Lifecycle Control                       │   │
-│  │  - Exclusive Access Locking                     │   │
-│  │  - Configuration & Statistics                   │   │
-│  └────────────┬────────────────────────────────────┘   │
-│               │                                          │
-│  ┌────────────▼────────────────────────────────────┐   │
-│  │   Port Scanner (internal/serial/scanner.go)     │   │
-│  │  - Port Discovery                               │   │
-│  │  - Hardware Detection                           │   │
-│  │  - Port Metadata Collection                     │   │
-│  └────────────┬────────────────────────────────────┘   │
-└────────────────────┬────────────────────────────────────┘
-                     │ Serial Interface
-                     ▼
-         ┌──────────────────────────┐
-         │   Hardware Devices       │
-         │  USB | COM | UART | BLE  │
-         └──────────────────────────┘
+# In another terminal: open a port
+seriallink open COM1 --baud 115200
 ```
 
-### Core Components
+That's it. Your serial port is now accessible via gRPC at `localhost:50051`.
 
-**API Layer** (`api/`)
-- `grpc_server.go` - gRPC service implementation with all RPC handlers
-- `proto/serial.proto` - Protocol Buffer definitions for service interface
-- `proto/serial.pb.go` & `serial_grpc.pb.go` - Generated protobuf code
+---
 
-**Serial Port Management** (`internal/serial/`)
-- `manager.go` - Session and connection lifecycle management
-- `serial.go` - Low-level serial port operations
-- `reader.go` - Streaming read operations
-- `scanner.go` - Port discovery and hardware detection
-- `errors.go` - Error definitions and handling
+## 📦 Installation
 
-**Command Interface** (`cmd/`)
-- `serve.go` - Service startup and lifecycle
-- `open.go` / `close.go` - Port open/close CLI commands
-- `read.go` / `write.go` - Data transfer operations
-- `scan.go` - Port scanning and discovery
-- `config.go` - Configuration management
-- `status.go` / `info.go` - Status and information queries
+### Go Install (recommended)
 
-**Configuration** (`config/`)
-- `config.go` - Configuration schema and loading
-- `agent.yaml` - Service configuration file
-
-### Usage Workflow
-
-#### 1. Service Deployment
-```
-Install → Configure → Start Agent Service → Listen on gRPC Port
+```bash
+go install github.com/Shoaibashk/SerialLink@latest
 ```
 
-#### 2. Client Interaction Flow
-```
-Client → Connect to gRPC → Authenticate → Discover Ports
-    ↓
-    → Open Port (Session Created) → Configure Port Settings
-    ↓
-    → Read/Write Data or Stream Data
-    ↓
-    → Close Port (Session Terminated) → Cleanup Resources
+### Build from Source
+
+```bash
+git clone https://github.com/Shoaibashk/SerialLink.git
+cd SerialLink && make build
 ```
 
-#### 3. Session Management
-- **Exclusive Access**: Ports support exclusive locking to prevent concurrent access
-- **Session ID**: Each port operation is tracked with a unique session identifier
-- **Resource Cleanup**: Automatic cleanup of abandoned sessions and port handles
+### Download Binary
 
-#### 4. API Endpoints
+[Releases](https://github.com/Shoaibashk/SerialLink/releases)
 
-**Discovery Operations**
-- `ListPorts` - Enumerate all available serial ports
-- `GetPortInfo` - Get detailed information about a specific port
+---
 
-**Port Management**
-- `OpenPort` - Acquire exclusive or shared access to a port
-- `ClosePort` - Release port resources
-- `GetPortStatus` - Query current port state
-- `ConfigurePort` - Set port parameters (baud rate, parity, etc.)
+## 🛠️ CLI Reference
 
-**Data Transfer**
-- `Write` - Single write operation
-- `Read` - Single read operation with timeout
-- `StreamRead` - Server-side streaming of incoming data
-- `StreamWrite` - Client-side streaming of outgoing data
-- `BiDirectionalStream` - Full-duplex streaming
+| Command | Description |
+| --------- | ------------- |
+| `seriallink serve` | Start the gRPC server |
+| `seriallink scan` | List available serial ports |
+| `seriallink open <port>` | Open a port with config |
+| `seriallink close <port>` | Close and release a port |
+| `seriallink read <port>` | Read data from port |
+| `seriallink write <port> <data>` | Write data to port |
+| `seriallink config <port>` | View/modify port settings |
+| `seriallink status <port>` | Get port statistics |
+| `seriallink info` | Service information |
+| `seriallink version` | Version info |
 
-**Diagnostics**
-- `Ping` - Service health check
-- `GetAgentInfo` - Service version and uptime information
+### Common Examples
 
-### Concurrency Model
+```bash
+# Start server with custom address
+seriallink serve --address 0.0.0.0:50052
 
-- **Thread-safe Operations**: All port operations use mutex protection
-- **Session Isolation**: Each session maintains independent state
-- **Streaming Support**: Concurrent readers/writers on single port via multiplexing
-- **Atomic Operations**: Statistics and status updates use atomic operations
+# Scan with JSON output (great for scripts)
+seriallink scan --json
+
+# Open with full config
+seriallink open /dev/ttyUSB0 --baud 115200 --data-bits 8 --parity none
+
+# Read with timeout
+seriallink read COM1 --timeout 5000 --format hex
+
+# Write hex data
+seriallink write COM1 --hex "48454C4C4F"
+```
+
+> 💡 **Tip:** Set `SERIALLINK_ADDRESS` env var to skip `--address` on every command.
+
+---
+
+## 🌐 gRPC API
+
+Connect from any language:
+
+```python
+# Python
+import grpc
+channel = grpc.insecure_channel('localhost:50051')
+stub = SerialServiceStub(channel)
+ports = stub.ListPorts(ListPortsRequest())
+```
+
+```javascript
+// Node.js
+const client = new SerialService('localhost:50051', grpc.credentials.createInsecure());
+client.ListPorts({}, (err, response) => console.log(response.ports));
+```
+
+```csharp
+// C#
+var channel = GrpcChannel.ForAddress("http://localhost:50051");
+var client = new SerialService.SerialServiceClient(channel);
+var ports = await client.ListPortsAsync(new ListPortsRequest());
+```
+
+**Key Methods:**
+
+- `ListPorts`
+- `OpenPort`
+- `ClosePort`
+- `Read`
+- `Write`
+- `StreamRead`
+- `BiDirectionalStream`
+
+📖 **Full API docs:** [docs/API.md](docs/API.md)
+
+---
+
+## ⚙️ Configuration
+
+```yaml
+# ~/.seriallink/config.yaml
+server:
+  grpc_address: "0.0.0.0:50051"
+
+serial:
+  defaults:
+    baud_rate: 9600
+    data_bits: 8
+    parity: "none"
+
+logging:
+  level: "info"    # debug | info | warn | error
+```
+
+Config locations: `~/.seriallink/config.yaml` → `./config.yaml` → `/etc/seriallink/config.yaml`
+
+---
+
+## 📚 Documentation
+
+| Doc | Description |
+| ----- | ------------- |
+| [**API Reference**](docs/API.md) | gRPC methods, client examples, error codes |
+| [**Deployment Guide**](docs/DEPLOYMENT.md) | systemd, Windows service, Docker, TLS |
+| [**Development Guide**](docs/DEVELOPMENT.md) | Building, architecture, contributing |
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Here's how to get started:
+
+```bash
+# Clone and build
+git clone https://github.com/Shoaibashk/SerialLink.git
+cd SerialLink
+make build
+
+# Run checks before submitting
+make ci
+```
+
+**Ways to contribute:**
+
+- 🐛 Report bugs via [Issues](https://github.com/Shoaibashk/SerialLink/issues)
+- 💡 Suggest features
+- 📖 Improve documentation
+- 🔧 Submit pull requests
+
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for detailed setup.
+
+---
+
+## 📄 License
+
+[Apache License 2.0](LICENSE) — use it freely in personal and commercial projects.
+
+---
+
+Made with ❤️ by Shoaibashk for hardware hackers, IoT builders, and serial port wranglers.
+
+[⭐ Star us on GitHub](https://github.com/Shoaibashk/SerialLink/stargazers)
