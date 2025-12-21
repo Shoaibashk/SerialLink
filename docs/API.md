@@ -9,15 +9,48 @@ SerialLink exposes a high-performance gRPC API for serial port management.
 ### Connect with grpcurl
 
 ```bash
-# List available methods
-grpcurl -plaintext localhost:50051 list serial.SerialService
+# List available services
+grpcurl -plaintext localhost:50051 list
 
-# List ports
-grpcurl -plaintext localhost:50051 serial.SerialService/ListPorts
+# List available RPC methods
+grpcurl -plaintext localhost:50051 list seriallink.v1.SerialService
 
-# Open a port
-grpcurl -plaintext -d '{"port_name": "COM1", "baud_rate": 9600}' \
-  localhost:50051 serial.SerialService/OpenPort
+# List available serial ports
+grpcurl -plaintext localhost:50051 seriallink.v1.SerialService/ListPorts
+
+# Open a serial port (115200 baud, 8 data bits, 1 stop bit)
+grpcurl -plaintext -d '{
+  "port_name": "COM3",
+  "config": {
+    "baud_rate": 115200,
+    "data_bits": 8,
+    "stop_bits": 1,
+    "parity": 0,
+    "flow_control": 0
+  }
+}' localhost:50051 seriallink.v1.SerialService/OpenPort
+
+# Write data to port (returns session_id from OpenPort response)
+grpcurl -plaintext -d '{
+  "port_name": "COM3",
+  "session_id": "24189592-1c7f-4147-8679-87bf033c2bca",
+  "data": "SGVsbG8gQXJkdWlubyE=",
+  "flush": true
+}' localhost:50051 seriallink.v1.SerialService/Write
+
+# Read data from port
+grpcurl -plaintext -d '{
+  "port_name": "COM3",
+  "session_id": "24189592-1c7f-4147-8679-87bf033c2bca",
+  "max_bytes": 1024,
+  "timeout_ms": 2000
+}' localhost:50051 seriallink.v1.SerialService/Read
+
+# Close the port
+grpcurl -plaintext -d '{
+  "port_name": "COM3",
+  "session_id": "24189592-1c7f-4147-8679-87bf033c2bca"
+}' localhost:50051 seriallink.v1.SerialService/ClosePort
 ```
 
 ### Proto File Location
@@ -46,12 +79,12 @@ rpc ListPorts(ListPortsRequest) returns (ListPortsResponse)
 {
   "ports": [
     {
-      "name": "COM1",
-      "description": "USB Serial Port",
-      "is_usb": true,
-      "vid": "0x2341",
-      "pid": "0x0043",
-      "serial_number": "ABC123"
+      "name": "COM3",
+      "description": "Arduino Uno (COM3)",
+      "hardwareId": "USB\\VID_2341&PID_0043",
+      "product": "Arduino Uno (COM3)",
+      "serialNumber": "95632313234351211231",
+      "portType": "PORT_TYPE_USB"
     }
   ]
 }
@@ -91,13 +124,14 @@ rpc OpenPort(OpenPortRequest) returns (OpenPortResponse)
 
 ```json
 {
-  "port_name": "COM1",
-  "baud_rate": 115200,
-  "data_bits": 8,
-  "stop_bits": 1,
-  "parity": "PARITY_NONE",
-  "flow_control": "FLOW_CONTROL_NONE",
-  "client_id": "my-app-001"
+  "port_name": "COM3",
+  "config": {
+    "baud_rate": 115200,
+    "data_bits": 8,
+    "stop_bits": 1,
+    "parity": 0,
+    "flow_control": 0
+  }
 }
 ```
 
@@ -106,12 +140,12 @@ rpc OpenPort(OpenPortRequest) returns (OpenPortResponse)
 ```json
 {
   "success": true,
-  "session_id": "550e8400-e29b-41d4-a716-446655440000",
-  "message": "Port opened successfully"
+  "message": "port opened successfully",
+  "sessionId": "24189592-1c7f-4147-8679-87bf033c2bca"
 }
 ```
 
-> ⚠️ Save the `session_id` — you'll need it for subsequent operations.
+> ⚠️ Save the `sessionId` — you'll need it for subsequent operations.
 
 ---
 
@@ -127,8 +161,8 @@ rpc ClosePort(ClosePortRequest) returns (ClosePortResponse)
 
 ```json
 {
-  "port_name": "COM1",
-  "session_id": "550e8400-e29b-41d4-a716-446655440000"
+  "port_name": "COM3",
+  "session_id": "24189592-1c7f-4147-8679-87bf033c2bca"
 }
 ```
 
@@ -146,13 +180,23 @@ rpc GetPortStatus(GetPortStatusRequest) returns (PortStatus)
 
 ```json
 {
-  "port_name": "COM1",
-  "is_open": true,
-  "session_id": "550e8400-e29b-41d4-a716-446655440000",
-  "bytes_sent": 1024,
-  "bytes_received": 2048,
-  "errors": 0,
-  "last_activity": "2025-12-21T10:30:00Z"
+  "portName": "COM3",
+  "isOpen": true,
+  "lockedBy": "default-client",
+  "sessionId": "24189592-1c7f-4147-8679-87bf033c2bca",
+  "currentConfig": {
+    "baudRate": 115200,
+    "dataBits": "DATA_BITS_8",
+    "stopBits": "STOP_BITS_1",
+    "parity": "PARITY_NONE",
+    "flowControl": "FLOW_CONTROL_NONE"
+  },
+  "statistics": {
+    "bytesSent": "14",
+    "bytesReceived": "565",
+    "openedAt": "1766343135",
+    "lastActivity": "1766343150"
+  }
 }
 ```
 
@@ -192,9 +236,9 @@ rpc Write(WriteRequest) returns (WriteResponse)
 
 ```json
 {
-  "port_name": "COM1",
-  "session_id": "...",
-  "data": "SGVsbG8gV29ybGQ=",  // Base64 encoded
+  "port_name": "COM3",
+  "session_id": "24189592-1c7f-4147-8679-87bf033c2bca",
+  "data": "SGVsbG8gQXJkdWlubyE=",
   "flush": true
 }
 ```
@@ -203,7 +247,9 @@ rpc Write(WriteRequest) returns (WriteResponse)
 
 ```json
 {
-  "bytes_written": 11
+  "success": true,
+  "bytesWritten": 14,
+  "message": "data written successfully"
 }
 ```
 
@@ -221,10 +267,10 @@ rpc Read(ReadRequest) returns (ReadResponse)
 
 ```json
 {
-  "port_name": "COM1",
-  "session_id": "...",
+  "port_name": "COM3",
+  "session_id": "24189592-1c7f-4147-8679-87bf033c2bca",
   "max_bytes": 1024,
-  "timeout_ms": 1000
+  "timeout_ms": 2000
 }
 ```
 
@@ -232,8 +278,10 @@ rpc Read(ReadRequest) returns (ReadResponse)
 
 ```json
 {
-  "data": "UmVzcG9uc2UgZGF0YQ==",  // Base64 encoded
-  "bytes_read": 13
+  "success": true,
+  "data": "MC4wMCA0LjI0DQowLjAwIDMuMzkNCjAuMDAgMi43Mg0KMC4wMCAyLjE3DQowLjAwIDEuNzQNCjAuMDAgMS4zOQ0KMC4wMCAxLjExDQowLjAwIDAuODkNCjAuMDAgMC43MQ0K...",
+  "bytesRead": 565,
+  "message": "data read successfully"
 }
 ```
 
