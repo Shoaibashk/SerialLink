@@ -259,8 +259,8 @@ grpcurl -plaintext localhost:50051 serial.SerialService/ListPorts
 
 ## Release Process
 
-1. Update version in code
-2. Run full CI checks: `make ci`
-3. Build with version info: `make build VERSION=x.x.x`
-4. Tag release: `git tag vx.x.x`
-5. Push tags: `git push --tags`
+1. Install GoReleaser locally (one time): `go install github.com/goreleaser/goreleaser/v2/cmd/goreleaser@latest`
+2. Verify packaging locally without publishing: `goreleaser release --snapshot --clean`
+3. Run full CI checks: `make ci`
+4. Tag the version you just tested: `git tag vX.Y.Z`
+5. Push the tag to trigger the GitHub Action release (builds Windows/Linux/macOS/FreeBSD; 386, amd64, arm64 where supported): `git push origin vX.Y.Z`
