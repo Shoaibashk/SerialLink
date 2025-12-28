@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"time"
 
-	pb "github.com/Shoaibashk/SerialLink/api/proto"
+	pb "github.com/Shoaibashk/SerialLink-Proto/gen/go/seriallink/v1"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -70,10 +70,10 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	if jsonOutput {
-		return printStatusJSON(resp)
+		return printStatusJSON(resp.Status)
 	}
 
-	return printStatusTable(resp)
+	return printStatusTable(resp.Status)
 }
 
 func printStatusTable(status *pb.PortStatus) error {

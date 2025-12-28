@@ -55,7 +55,7 @@ grpcurl -plaintext -d '{
 
 ### Proto File Location
 
-The complete service definition is in [`api/proto/serial.proto`](../api/proto/serial.proto).
+The complete service definition is in [`api/proto/proto/seriallink/v1/serial.proto`](../api/proto/proto/seriallink/v1/serial.proto).
 
 ---
 

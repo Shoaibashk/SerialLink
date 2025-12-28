@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"time"
 
-	pb "github.com/Shoaibashk/SerialLink/api/proto"
+	pb "github.com/Shoaibashk/SerialLink-Proto/gen/go/seriallink/v1"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -66,10 +66,10 @@ func runInfo(cmd *cobra.Command, args []string) error {
 	}
 
 	if jsonOutput {
-		return printInfoJSON(resp)
+		return printInfoJSON(resp.Info)
 	}
 
-	return printInfoTable(resp)
+	return printInfoTable(resp.Info)
 }
 
 func printInfoTable(info *pb.AgentInfo) error {
