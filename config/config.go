@@ -35,14 +35,11 @@ type Config struct {
 	Serial  SerialConfig  `mapstructure:"serial" yaml:"serial"`
 	Logging LoggingConfig `mapstructure:"logging" yaml:"logging"`
 	Service ServiceConfig `mapstructure:"service" yaml:"service"`
-	Metrics MetricsConfig `mapstructure:"metrics" yaml:"metrics"`
 }
 
 // ServerConfig holds server-related settings
 type ServerConfig struct {
 	GRPCAddress       string `mapstructure:"grpc_address" yaml:"grpc_address"`
-	WebSocketAddress  string `mapstructure:"websocket_address" yaml:"websocket_address"`
-	WebSocketEnabled  bool   `mapstructure:"websocket_enabled" yaml:"websocket_enabled"`
 	MaxConnections    int    `mapstructure:"max_connections" yaml:"max_connections"`
 	ConnectionTimeout int    `mapstructure:"connection_timeout" yaml:"connection_timeout"`
 }
@@ -95,20 +92,11 @@ type ServiceConfig struct {
 	RestartDelay  int    `mapstructure:"restart_delay" yaml:"restart_delay"`
 }
 
-// MetricsConfig holds metrics/monitoring settings
-type MetricsConfig struct {
-	Enabled bool   `mapstructure:"enabled" yaml:"enabled"`
-	Address string `mapstructure:"address" yaml:"address"`
-	Path    string `mapstructure:"path" yaml:"path"`
-}
-
 // DefaultConfig returns a configuration with sensible defaults
 func DefaultConfig() *Config {
 	return &Config{
 		Server: ServerConfig{
 			GRPCAddress:       "0.0.0.0:50051",
-			WebSocketAddress:  "0.0.0.0:8080",
-			WebSocketEnabled:  false,
 			MaxConnections:    100,
 			ConnectionTimeout: 30,
 		},
@@ -143,11 +131,6 @@ func DefaultConfig() *Config {
 			AutoStart:     true,
 			RestartPolicy: "on-failure",
 			RestartDelay:  5,
-		},
-		Metrics: MetricsConfig{
-			Enabled: false,
-			Address: "0.0.0.0:9090",
-			Path:    "/metrics",
 		},
 	}
 }
@@ -186,8 +169,6 @@ func SetDefaults() {
 
 	// Server defaults
 	viper.SetDefault("server.grpc_address", defaults.Server.GRPCAddress)
-	viper.SetDefault("server.websocket_address", defaults.Server.WebSocketAddress)
-	viper.SetDefault("server.websocket_enabled", defaults.Server.WebSocketEnabled)
 	viper.SetDefault("server.max_connections", defaults.Server.MaxConnections)
 	viper.SetDefault("server.connection_timeout", defaults.Server.ConnectionTimeout)
 
@@ -220,11 +201,6 @@ func SetDefaults() {
 	viper.SetDefault("service.auto_start", defaults.Service.AutoStart)
 	viper.SetDefault("service.restart_policy", defaults.Service.RestartPolicy)
 	viper.SetDefault("service.restart_delay", defaults.Service.RestartDelay)
-
-	// Metrics defaults
-	viper.SetDefault("metrics.enabled", defaults.Metrics.Enabled)
-	viper.SetDefault("metrics.address", defaults.Metrics.Address)
-	viper.SetDefault("metrics.path", defaults.Metrics.Path)
 }
 
 // Load reads configuration from viper and returns a Config struct
@@ -288,7 +264,6 @@ func (c *Config) toMap() map[string]interface{} {
 		"serial":  c.Serial,
 		"logging": c.Logging,
 		"service": c.Service,
-		"metrics": c.Metrics,
 	}
 }
 

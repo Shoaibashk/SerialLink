@@ -25,9 +25,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	pb "github.com/Shoaibashk/SerialLink/api/proto"
+	pb "github.com/Shoaibashk/SerialLink-Proto/gen/go/seriallink/v1"
 	"github.com/Shoaibashk/SerialLink/config"
 	"github.com/Shoaibashk/SerialLink/internal/serial"
+	"github.com/charmbracelet/log"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -48,16 +50,69 @@ type SerialServer struct {
 	startTime time.Time
 	readers   map[string]*serial.Reader
 	readersMu sync.RWMutex
+	logger    *log.Logger
 }
 
 // NewSerialServer creates a new SerialServer
-func NewSerialServer(manager *serial.Manager, scanner *serial.Scanner, cfg *config.Config) *SerialServer {
+func NewSerialServer(manager *serial.Manager, scanner *serial.Scanner, cfg *config.Config, logger *log.Logger) *SerialServer {
 	return &SerialServer{
 		manager:   manager,
 		scanner:   scanner,
 		config:    cfg,
 		startTime: time.Now(),
 		readers:   make(map[string]*serial.Reader),
+		logger:    logger,
+	}
+}
+
+// UnaryLoggingInterceptor returns a gRPC unary interceptor for logging requests
+func UnaryLoggingInterceptor(logger *log.Logger) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		start := time.Now()
+		resp, err := handler(ctx, req)
+		duration := time.Since(start)
+
+		if err != nil {
+			st, _ := status.FromError(err)
+			logger.Warn("gRPC request failed",
+				"method", info.FullMethod,
+				"duration", duration,
+				"code", st.Code().String(),
+				"error", st.Message())
+		} else {
+			logger.Debug("gRPC request completed",
+				"method", info.FullMethod,
+				"duration", duration,
+				"code", codes.OK.String())
+		}
+
+		return resp, err
+	}
+}
+
+// StreamLoggingInterceptor returns a gRPC stream interceptor for logging
+func StreamLoggingInterceptor(logger *log.Logger) grpc.StreamServerInterceptor {
+	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		start := time.Now()
+		logger.Debug("gRPC stream started", "method", info.FullMethod)
+
+		err := handler(srv, ss)
+		duration := time.Since(start)
+
+		if err != nil {
+			st, _ := status.FromError(err)
+			logger.Warn("gRPC stream ended with error",
+				"method", info.FullMethod,
+				"duration", duration,
+				"code", st.Code().String(),
+				"error", st.Message())
+		} else {
+			logger.Debug("gRPC stream completed",
+				"method", info.FullMethod,
+				"duration", duration)
+		}
+
+		return err
 	}
 }
 
@@ -85,7 +140,7 @@ func (s *SerialServer) ListPorts(ctx context.Context, req *pb.ListPortsRequest) 
 }
 
 // GetPortInfo returns information about a specific port
-func (s *SerialServer) GetPortInfo(ctx context.Context, req *pb.GetPortInfoRequest) (*pb.PortInfo, error) {
+func (s *SerialServer) GetPortInfo(ctx context.Context, req *pb.GetPortInfoRequest) (*pb.GetPortInfoResponse, error) {
 	if req.PortName == "" {
 		return nil, status.Error(codes.InvalidArgument, "port_name is required")
 	}
@@ -95,7 +150,7 @@ func (s *SerialServer) GetPortInfo(ctx context.Context, req *pb.GetPortInfoReque
 		return nil, status.Errorf(codes.NotFound, "port not found: %v", err)
 	}
 
-	return s.convertPortInfo(*port), nil
+	return &pb.GetPortInfoResponse{Port: s.convertPortInfo(*port)}, nil
 }
 
 // ============================================================================
@@ -168,7 +223,7 @@ func (s *SerialServer) ClosePort(ctx context.Context, req *pb.ClosePortRequest) 
 }
 
 // GetPortStatus returns the status of a port
-func (s *SerialServer) GetPortStatus(ctx context.Context, req *pb.GetPortStatusRequest) (*pb.PortStatus, error) {
+func (s *SerialServer) GetPortStatus(ctx context.Context, req *pb.GetPortStatusRequest) (*pb.GetPortStatusResponse, error) {
 	if req.PortName == "" {
 		return nil, status.Error(codes.InvalidArgument, "port_name is required")
 	}
@@ -176,27 +231,31 @@ func (s *SerialServer) GetPortStatus(ctx context.Context, req *pb.GetPortStatusR
 	session, err := s.manager.GetStatus(req.PortName)
 	if err != nil {
 		if err == serial.ErrPortNotOpen {
-			return &pb.PortStatus{
-				PortName: req.PortName,
-				IsOpen:   false,
+			return &pb.GetPortStatusResponse{
+				Status: &pb.PortStatus{
+					PortName: req.PortName,
+					IsOpen:   false,
+				},
 			}, nil
 		}
 		return nil, status.Errorf(codes.Internal, "failed to get port status: %v", err)
 	}
 
-	return &pb.PortStatus{
-		PortName:      session.PortName,
-		IsOpen:        true,
-		IsLocked:      session.Exclusive,
-		LockedBy:      session.ClientID,
-		SessionId:     session.ID,
-		CurrentConfig: s.convertFromSerialConfig(session.Config),
-		Statistics: &pb.PortStatistics{
-			BytesSent:     session.Statistics.BytesSent,
-			BytesReceived: session.Statistics.BytesReceived,
-			Errors:        session.Statistics.Errors,
-			OpenedAt:      session.Statistics.OpenedAt.Unix(),
-			LastActivity:  session.Statistics.LastActivity.Unix(),
+	return &pb.GetPortStatusResponse{
+		Status: &pb.PortStatus{
+			PortName:      session.PortName,
+			IsOpen:        true,
+			IsLocked:      session.Exclusive,
+			LockedBy:      session.ClientID,
+			SessionId:     session.ID,
+			CurrentConfig: s.convertFromSerialConfig(session.Config),
+			Statistics: &pb.PortStatistics{
+				BytesSent:     session.Statistics.BytesSent,
+				BytesReceived: session.Statistics.BytesReceived,
+				Errors:        session.Statistics.Errors,
+				OpenedAt:      session.Statistics.OpenedAt.Unix(),
+				LastActivity:  session.Statistics.LastActivity.Unix(),
+			},
 		},
 	}, nil
 }
@@ -204,7 +263,6 @@ func (s *SerialServer) GetPortStatus(ctx context.Context, req *pb.GetPortStatusR
 // ============================================================================
 // Data Transfer
 // ============================================================================
-
 // Write writes data to a port
 func (s *SerialServer) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResponse, error) {
 	if req.PortName == "" {
@@ -335,7 +393,7 @@ func (s *SerialServer) StreamRead(req *pb.StreamReadRequest, stream pb.SerialSer
 				chunk.Timestamp = event.Timestamp.UnixNano()
 			}
 
-			if err := stream.Send(chunk); err != nil {
+			if err := stream.Send(&pb.StreamReadResponse{Chunk: chunk}); err != nil {
 				return err
 			}
 		}
@@ -362,12 +420,12 @@ func (s *SerialServer) StreamWrite(stream pb.SerialService_StreamWriteServer) er
 		}
 
 		// Get session for this port
-		session := s.manager.GetSession(chunk.PortName)
+		session := s.manager.GetSession(chunk.GetChunk().PortName)
 		if session == nil {
 			return status.Error(codes.NotFound, "port not open")
 		}
 
-		n, err := s.manager.Write(chunk.PortName, session.ID, chunk.Data)
+		n, err := s.manager.Write(chunk.GetChunk().PortName, session.ID, chunk.GetChunk().Data)
 		if err != nil {
 			return status.Errorf(codes.Internal, "write failed: %v", err)
 		}
@@ -432,7 +490,7 @@ func (s *SerialServer) handleBiDirectionalWrites(
 
 		// Initialize port and session on first message
 		if *portName == "" {
-			*portName = chunk.PortName
+			*portName = chunk.GetChunk().PortName
 			session := s.manager.GetSession(*portName)
 			if session == nil {
 				errChan <- status.Error(codes.NotFound, "port not open")
@@ -442,7 +500,7 @@ func (s *SerialServer) handleBiDirectionalWrites(
 		}
 
 		// Write data to the serial port
-		_, err = s.manager.Write(*portName, *sessionID, chunk.Data)
+		_, err = s.manager.Write(*portName, *sessionID, chunk.GetChunk().Data)
 		if err != nil {
 			errChan <- status.Errorf(codes.Internal, "write failed: %v", err)
 			return
@@ -483,7 +541,7 @@ func (s *SerialServer) handleBiDirectionalReads(
 				Sequence:  sequence,
 			}
 
-			if err := stream.Send(chunk); err != nil {
+			if err := stream.Send(&pb.BiDirectionalStreamResponse{Chunk: chunk}); err != nil {
 				return err
 			}
 		}
@@ -520,7 +578,7 @@ func (s *SerialServer) ConfigurePort(ctx context.Context, req *pb.ConfigurePortR
 }
 
 // GetPortConfig returns the current configuration of a port
-func (s *SerialServer) GetPortConfig(ctx context.Context, req *pb.GetPortConfigRequest) (*pb.PortConfig, error) {
+func (s *SerialServer) GetPortConfig(ctx context.Context, req *pb.GetPortConfigRequest) (*pb.GetPortConfigResponse, error) {
 	if req.PortName == "" {
 		return nil, status.Error(codes.InvalidArgument, "port_name is required")
 	}
@@ -530,7 +588,7 @@ func (s *SerialServer) GetPortConfig(ctx context.Context, req *pb.GetPortConfigR
 		return nil, status.Errorf(codes.NotFound, "port not open: %v", err)
 	}
 
-	return s.convertFromSerialConfig(session.Config), nil
+	return &pb.GetPortConfigResponse{Config: s.convertFromSerialConfig(session.Config)}, nil
 }
 
 // ============================================================================
@@ -551,25 +609,27 @@ func (s *SerialServer) Ping(ctx context.Context, req *pb.PingRequest) (*pb.PingR
 }
 
 // GetAgentInfo returns information about the agent
-func (s *SerialServer) GetAgentInfo(ctx context.Context, req *pb.GetAgentInfoRequest) (*pb.AgentInfo, error) {
-	return &pb.AgentInfo{
-		Version:       Version,
-		BuildCommit:   Commit,
-		BuildDate:     BuildDate,
-		Os:            runtime.GOOS,
-		Arch:          runtime.GOARCH,
-		UptimeSeconds: int64(time.Since(s.startTime).Seconds()),
-		SupportedFeatures: []string{
-			"grpc",
-			"port-scan",
-			"port-lock",
-			"streaming",
-			"bidirectional-streaming",
-		},
-		Config: &pb.AgentConfig{
-			GrpcAddress:    s.config.Server.GRPCAddress,
-			TlsEnabled:     s.config.TLS.Enabled,
-			MaxConnections: uint32(s.config.Server.MaxConnections),
+func (s *SerialServer) GetAgentInfo(ctx context.Context, req *pb.GetAgentInfoRequest) (*pb.GetAgentInfoResponse, error) {
+	return &pb.GetAgentInfoResponse{
+		Info: &pb.AgentInfo{
+			Version:       Version,
+			BuildCommit:   Commit,
+			BuildDate:     BuildDate,
+			Os:            runtime.GOOS,
+			Arch:          runtime.GOARCH,
+			UptimeSeconds: int64(time.Since(s.startTime).Seconds()),
+			SupportedFeatures: []string{
+				"grpc",
+				"port-scan",
+				"port-lock",
+				"streaming",
+				"bidirectional-streaming",
+			},
+			Config: &pb.AgentConfig{
+				GrpcAddress:    s.config.Server.GRPCAddress,
+				TlsEnabled:     s.config.TLS.Enabled,
+				MaxConnections: uint32(s.config.Server.MaxConnections),
+			},
 		},
 	}, nil
 }
