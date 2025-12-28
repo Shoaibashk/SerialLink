@@ -182,7 +182,7 @@ Errors are defined in `internal/serial/errors.go`:
 
 ### Regenerating Protobuf Code
 
-After modifying `api/proto/serial.proto`:
+After modifying `api/proto/proto/seriallink/v1/serial.proto`:
 
 ```bash
 make proto
@@ -190,15 +190,16 @@ make proto
 
 This requires:
 
-- `protoc` compiler
-- `protoc-gen-go` plugin
-- `protoc-gen-go-grpc` plugin
+- `buf` CLI tool
 
-Install plugins:
+Install buf:
 
-```bash
-go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+```powershell
+# Windows (Scoop)
+scoop install buf
+
+# Windows (Chocolatey)
+choco install buf
 ```
 
 ---

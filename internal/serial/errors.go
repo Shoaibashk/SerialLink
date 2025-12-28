@@ -5,9 +5,6 @@ import "errors"
 
 // Common errors for serial port operations
 var (
-	// ErrNotOpen is returned when operations are attempted on a closed connection
-	ErrNotOpen = errors.New("serial port is not open")
-
 	// ErrPortNotFound is returned when a port cannot be found
 	ErrPortNotFound = errors.New("port not found")
 

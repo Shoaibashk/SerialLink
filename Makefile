@@ -42,7 +42,7 @@ vet:
 	go vet ./...
 
 proto:
-	protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative api/proto/serial.proto
+	cd api/proto && .\generate.ps1 -Target go
 	@echo Proto files generated
 
 install-tools:

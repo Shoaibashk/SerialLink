@@ -7,10 +7,6 @@ server:
   # gRPC server address
   grpc_address: "0.0.0.0:50051"
 
-  # Optional WebSocket server (for web clients)
-  websocket_address: "0.0.0.0:8080"
-  websocket_enabled: false
-
   # Maximum concurrent connections
   max_connections: 100
 
@@ -89,10 +85,3 @@ service:
 
   # Restart delay in seconds
   restart_delay: 5
-
-# Metrics and monitoring
-metrics:
-  enabled: false
-  # Prometheus metrics endpoint
-  address: "0.0.0.0:9090"
-  path: "/metrics"

@@ -23,12 +23,14 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
+	pb "github.com/Shoaibashk/SerialLink-Proto/gen/go/seriallink/v1"
 	"github.com/Shoaibashk/SerialLink/api"
-	pb "github.com/Shoaibashk/SerialLink/api/proto"
 	"github.com/Shoaibashk/SerialLink/config"
 	"github.com/Shoaibashk/SerialLink/internal/serial"
+	"github.com/charmbracelet/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
@@ -65,11 +67,19 @@ func init() {
 	serveCmd.Flags().String("key", "", "TLS key file")
 	serveCmd.Flags().Bool("reflection", true, "enable gRPC reflection")
 
-	// Bind flags to viper
-	_ = viper.BindPFlag("server.grpc_address", serveCmd.Flags().Lookup("address"))
-	_ = viper.BindPFlag("tls.enabled", serveCmd.Flags().Lookup("tls"))
-	_ = viper.BindPFlag("tls.cert_file", serveCmd.Flags().Lookup("cert"))
-	_ = viper.BindPFlag("tls.key_file", serveCmd.Flags().Lookup("key"))
+	// Bind flags to viper with error logging
+	if err := viper.BindPFlag("server.grpc_address", serveCmd.Flags().Lookup("address")); err != nil {
+		log.Warn("failed to bind address flag", "error", err)
+	}
+	if err := viper.BindPFlag("tls.enabled", serveCmd.Flags().Lookup("tls")); err != nil {
+		log.Warn("failed to bind tls flag", "error", err)
+	}
+	if err := viper.BindPFlag("tls.cert_file", serveCmd.Flags().Lookup("cert")); err != nil {
+		log.Warn("failed to bind cert flag", "error", err)
+	}
+	if err := viper.BindPFlag("tls.key_file", serveCmd.Flags().Lookup("key")); err != nil {
+		log.Warn("failed to bind key flag", "error", err)
+	}
 }
 
 func runServe(cmd *cobra.Command, args []string) error {
@@ -79,15 +89,24 @@ func runServe(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
+	// Initialize logger based on config
+	logger := initLogger(cfg)
+
 	// Override with command line flags if provided
 	if addr, _ := cmd.Flags().GetString("address"); addr != "" {
 		cfg.Server.GRPCAddress = addr
 	}
 
-	if IsVerbose() {
-		fmt.Printf("Starting SerialLink server v%s\n", Version)
-		fmt.Printf("  Address: %s\n", cfg.Server.GRPCAddress)
-		fmt.Printf("  TLS:     %v\n", cfg.TLS.Enabled)
+	logger.Info("Starting SerialLink server",
+		"version", Version,
+		"address", cfg.Server.GRPCAddress,
+		"tls", cfg.TLS.Enabled)
+
+	// Validate TLS certificates if TLS is enabled
+	if cfg.TLS.Enabled {
+		if err := validateTLSConfig(cfg.TLS, logger); err != nil {
+			return fmt.Errorf("TLS validation failed: %w", err)
+		}
 	}
 
 	// Create serial manager with default config
@@ -105,8 +124,12 @@ func runServe(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create scanner: %w", err)
 	}
 
-	// Create gRPC server options
+	// Create gRPC server options with logging interceptors
 	var opts []grpc.ServerOption
+	opts = append(opts,
+		grpc.UnaryInterceptor(api.UnaryLoggingInterceptor(logger)),
+		grpc.StreamInterceptor(api.StreamLoggingInterceptor(logger)),
+	)
 
 	// Configure TLS if enabled
 	if cfg.TLS.Enabled {
@@ -115,6 +138,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to load TLS config: %w", tlsErr)
 		}
 		opts = append(opts, grpc.Creds(credentials.NewTLS(tlsConfig)))
+		logger.Info("TLS enabled", "cert", cfg.TLS.CertFile)
 	}
 
 	// Add server options for connection limits
@@ -126,7 +150,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 	grpcServer := grpc.NewServer(opts...)
 
 	// Create and register the serial service
-	serialServer := api.NewSerialServer(manager, scanner, cfg)
+	serialServer := api.NewSerialServer(manager, scanner, cfg, logger)
 	pb.RegisterSerialServiceServer(grpcServer, serialServer)
 
 	// Enable reflection for debugging
@@ -147,7 +171,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 	// Start server in goroutine
 	errChan := make(chan error, 1)
 	go func() {
-		fmt.Printf("SerialLink gRPC server listening on %s\n", cfg.Server.GRPCAddress)
+		logger.Info("SerialLink gRPC server listening", "address", cfg.Server.GRPCAddress)
 		if err := grpcServer.Serve(listener); err != nil {
 			errChan <- err
 		}
@@ -156,12 +180,71 @@ func runServe(cmd *cobra.Command, args []string) error {
 	// Wait for shutdown signal or error
 	select {
 	case <-ctx.Done():
-		fmt.Println("\nShutting down gracefully...")
+		logger.Info("Shutting down gracefully...")
 		grpcServer.GracefulStop()
 		return nil
 	case err := <-errChan:
 		return fmt.Errorf("server error: %w", err)
 	}
+}
+
+// initLogger creates and configures a charmbracelet logger based on config
+func initLogger(cfg *config.Config) *log.Logger {
+	logger := log.NewWithOptions(os.Stderr, log.Options{
+		ReportTimestamp: true,
+		ReportCaller:    true,
+	})
+
+	// Set log level from config
+	switch strings.ToLower(cfg.Logging.Level) {
+	case "debug":
+		logger.SetLevel(log.DebugLevel)
+	case "info":
+		logger.SetLevel(log.InfoLevel)
+	case "warn":
+		logger.SetLevel(log.WarnLevel)
+	case "error":
+		logger.SetLevel(log.ErrorLevel)
+	default:
+		logger.SetLevel(log.InfoLevel)
+	}
+
+	return logger
+}
+
+// validateTLSConfig validates that TLS certificate files exist and are readable
+func validateTLSConfig(tlsCfg config.TLSConfig, logger *log.Logger) error {
+	// Validate certificate file
+	if tlsCfg.CertFile != "" {
+		if _, err := os.Stat(tlsCfg.CertFile); os.IsNotExist(err) {
+			return fmt.Errorf("TLS certificate file not found: %s", tlsCfg.CertFile)
+		} else if err != nil {
+			return fmt.Errorf("cannot access TLS certificate file: %w", err)
+		}
+		logger.Debug("TLS certificate file validated", "path", tlsCfg.CertFile)
+	}
+
+	// Validate key file
+	if tlsCfg.KeyFile != "" {
+		if _, err := os.Stat(tlsCfg.KeyFile); os.IsNotExist(err) {
+			return fmt.Errorf("TLS key file not found: %s", tlsCfg.KeyFile)
+		} else if err != nil {
+			return fmt.Errorf("cannot access TLS key file: %w", err)
+		}
+		logger.Debug("TLS key file validated", "path", tlsCfg.KeyFile)
+	}
+
+	// Validate CA file (optional)
+	if tlsCfg.CAFile != "" {
+		if _, err := os.Stat(tlsCfg.CAFile); os.IsNotExist(err) {
+			return fmt.Errorf("TLS CA file not found: %s", tlsCfg.CAFile)
+		} else if err != nil {
+			return fmt.Errorf("cannot access TLS CA file: %w", err)
+		}
+		logger.Debug("TLS CA file validated", "path", tlsCfg.CAFile)
+	}
+
+	return nil
 }
 
 func loadTLSConfig(certFile, keyFile string) (*tls.Config, error) {

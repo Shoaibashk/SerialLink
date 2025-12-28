@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"github.com/google/uuid"
 	"go.bug.st/serial"
 )
@@ -293,8 +294,10 @@ func (m *Manager) CloseAll() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	for _, session := range m.sessions {
-		_ = m.closeSessionLocked(session)
+	for portName, session := range m.sessions {
+		if err := m.closeSessionLocked(session); err != nil {
+			log.Warn("failed to close session during CloseAll", "port", portName, "error", err)
+		}
 	}
 }
 

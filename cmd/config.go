@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"time"
 
-	pb "github.com/Shoaibashk/SerialLink/api/proto"
+	pb "github.com/Shoaibashk/SerialLink-Proto/gen/go/seriallink/v1"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -95,10 +95,10 @@ func runConfig(cmd *cobra.Command, args []string) error {
 	}
 
 	if jsonOutput {
-		return printConfigJSON(resp)
+		return printConfigJSON(resp.Config)
 	}
 
-	return printConfigTable(resp)
+	return printConfigTable(resp.Config)
 }
 
 func applyConfig(client pb.SerialServiceClient, ctx context.Context, portName, sessionID string, baud uint32, dataBits, stopBits, parity, flowControl string) error {
@@ -110,7 +110,7 @@ func applyConfig(client pb.SerialServiceClient, ctx context.Context, portName, s
 		return fmt.Errorf("failed to get current config: %w", err)
 	}
 
-	config := currentResp
+	config := currentResp.Config
 
 	// Apply updates
 	if baud > 0 {
