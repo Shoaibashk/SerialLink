@@ -2,6 +2,8 @@ module github.com/Shoaibashk/SerialLink
 
 go 1.24.0
 
+replace github.com/Shoaibashk/SerialLink-Proto => ./api/proto
+
 require (
 	github.com/Shoaibashk/SerialLink-Proto v0.0.0
 	github.com/charmbracelet/log v0.4.2
@@ -11,8 +13,6 @@ require (
 	go.bug.st/serial v1.6.4
 	google.golang.org/grpc v1.77.0
 )
-
-replace github.com/Shoaibashk/SerialLink-Proto => ./api/proto
 
 require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
