@@ -26,8 +26,8 @@ import (
 	"strings"
 	"syscall"
 
-	pb "github.com/Shoaibashk/SerialLink-Proto/gen/go/seriallink/v1"
 	"github.com/Shoaibashk/SerialLink/api"
+	pb "github.com/Shoaibashk/SerialLink/api/proto/gen/go/seriallink/v1"
 	"github.com/Shoaibashk/SerialLink/config"
 	"github.com/Shoaibashk/SerialLink/internal/serial"
 	"github.com/charmbracelet/log"

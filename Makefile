@@ -42,7 +42,8 @@ vet:
 	go vet ./...
 
 proto:
-	cd api/proto && .\generate.ps1 -Target go
+	git submodule update --remote --recursive
+	cd .\api\proto\ && pwsh -NoProfile -File .\generate.ps1 -Target go -Clean
 	@echo Proto files generated
 
 install-tools:

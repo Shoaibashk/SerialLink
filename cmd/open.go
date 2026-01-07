@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"time"
 
-	pb "github.com/Shoaibashk/SerialLink-Proto/gen/go/seriallink/v1"
+	pb "github.com/Shoaibashk/SerialLink/api/proto/gen/go/seriallink/v1"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -32,10 +32,10 @@ var openCmd = &cobra.Command{
 	Short: "Open a serial port",
 	Long: `Open a serial port with the specified configuration.
 
-Example:
-  seriallink open COM1                           # Open with defaults (9600 baud)
-  seriallink open COM1 --baud 115200             # Open with specific baud rate
-  seriallink open /dev/ttyUSB0 --baud 9600 --data-bits 8 --stop-bits 1 --parity none`,
+	Example:
+		seriallink open COM1                           # Open with defaults (9600 baud)
+		seriallink open COM1 --baud 115200             # Open with specific baud rate
+		seriallink open /dev/ttyUSB0 --baud 9600 --data-bits 8 --stop-bits 1 --parity none`,
 	Args: cobra.ExactArgs(1),
 	RunE: runOpen,
 }

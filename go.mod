@@ -2,10 +2,7 @@ module github.com/Shoaibashk/SerialLink
 
 go 1.24.0
 
-replace github.com/Shoaibashk/SerialLink-Proto => ./api/proto
-
 require (
-	github.com/Shoaibashk/SerialLink-Proto v0.0.0
 	github.com/charmbracelet/log v0.4.2
 	github.com/google/uuid v1.6.0
 	github.com/spf13/cobra v1.10.2
