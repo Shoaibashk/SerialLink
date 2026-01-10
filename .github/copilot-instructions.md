@@ -10,13 +10,13 @@ Client Apps ──gRPC──▶ SerialLink Agent ──USB/UART──▶ Hardwar
 
 ## Architecture
 
-| Layer | Location | Responsibility |
-|-------|----------|----------------|
-| CLI | `cmd/` | Cobra commands, flags via Viper |
-| gRPC API | `api/grpc_server.go` | Service implementation, interceptors |
-| Serial Manager | `internal/serial/manager.go` | Session lifecycle, exclusive locking |
-| Scanner | `internal/serial/scanner.go` | Port discovery, hardware detection |
-| Proto definitions | `api/proto/proto/seriallink/v1/serial.proto` | gRPC service contract |
+| Layer             | Location                                     | Responsibility                       |
+| ----------------- | -------------------------------------------- | ------------------------------------ |
+| CLI               | `cmd/`                                       | Cobra commands, flags via Viper      |
+| gRPC API          | `api/grpc_server.go`                         | Service implementation, interceptors |
+| Serial Manager    | `internal/serial/manager.go`                 | Session lifecycle, exclusive locking |
+| Scanner           | `internal/serial/scanner.go`                 | Port discovery, hardware detection   |
+| Proto definitions | `api/proto/proto/seriallink/v1/serial.proto` | gRPC service contract                |
 
 **Key flow:** `cmd/serve.go` → creates `Manager` + `Scanner` → injects into `SerialServer` → registers gRPC handlers.
 
@@ -42,11 +42,13 @@ make install-tools
 ## Code Conventions
 
 ### Error Handling
+
 - Define domain errors in `internal/serial/errors.go` as sentinel values
 - gRPC handlers convert to `status.Errorf(codes.X, ...)` in `api/grpc_server.go`
 - Example: `ErrPortLocked` → `codes.FailedPrecondition`
 
 ### Session Pattern
+
 ```go
 // OpenPort returns a Session with unique ID for all subsequent operations
 session, err := manager.OpenPort(portName, config, clientID, exclusive)
@@ -55,28 +57,33 @@ err := manager.ClosePort(portName, sessionID)
 ```
 
 ### Configuration
+
 - YAML config via Viper (`config/config.go`)
 - Environment override: `SERIALLINK_ADDRESS`
 - Flag binding pattern in `cmd/root.go` and `cmd/serve.go`
 
 ### Proto Module
+
 - Located at `api/proto/` as a separate Go module (see `replace` directive in root `go.mod`)
-- Import as: `pb "github.com/Shoaibashk/SerialLink-Proto/gen/go/seriallink/v1"`
+- Import as: `pb "github.com/Shoaibashk/SerialLink/api/proto/gen/go/seriallink/v1"`
 - Uses buf for generation (see `api/proto/buf.gen.yaml`)
 
 ## Adding New Features
 
 ### New CLI Command
+
 1. Create `cmd/<command>.go` with Cobra command struct
 2. Register in `init()` with `rootCmd.AddCommand()`
 3. Bind flags to Viper for config file support
 
 ### New gRPC Method
+
 1. Add RPC to `api/proto/proto/seriallink/v1/serial.proto`
 2. Run `make proto` to regenerate
 3. Implement handler in `api/grpc_server.go`
 
 ### New Serial Operation
+
 1. Add method to `Manager` in `internal/serial/manager.go`
 2. Ensure thread-safety with `mu.Lock()`/`mu.RLock()`
 3. Update session statistics atomically
@@ -84,18 +91,20 @@ err := manager.ClosePort(portName, sessionID)
 ## Streaming Handler Patterns
 
 ### Server-side Streaming (StreamRead)
+
 Use when client needs continuous data from serial port:
+
 ```go
 func (s *SerialServer) StreamRead(req *pb.StreamReadRequest, stream pb.SerialService_StreamReadServer) error {
     // 1. Create Reader with pub/sub pattern
     reader := serial.NewReader(s.manager, req.PortName, req.SessionID, chunkSize)
     defer reader.Stop()
-    
+
     // 2. Start background read loop
     if err := reader.Start(stream.Context()); err != nil {
         return status.Errorf(codes.Internal, "failed to start reader: %v", err)
     }
-    
+
     // 3. Subscribe and forward events to gRPC stream
     subscription := reader.Subscribe()
     for {
@@ -113,7 +122,9 @@ func (s *SerialServer) StreamRead(req *pb.StreamReadRequest, stream pb.SerialSer
 ```
 
 ### Client-side Streaming (StreamWrite)
+
 Use when client sends multiple chunks:
+
 ```go
 func (s *SerialServer) StreamWrite(stream pb.SerialService_StreamWriteServer) error {
     var totalBytes uint64
@@ -126,7 +137,7 @@ func (s *SerialServer) StreamWrite(stream pb.SerialService_StreamWriteServer) er
             })
         }
         if err != nil { return err }
-        
+
         // Process chunk
         n, _ := s.manager.Write(portName, sessionID, chunk.Data)
         atomic.AddUint64(&totalBytes, uint64(n))
@@ -135,14 +146,16 @@ func (s *SerialServer) StreamWrite(stream pb.SerialService_StreamWriteServer) er
 ```
 
 ### Bidirectional Streaming
+
 Split into goroutines - one for reads, one for writes:
+
 ```go
 func (s *SerialServer) BiDirectionalStream(stream pb.SerialService_BiDirectionalStreamServer) error {
     errChan := make(chan error, 2)
-    
+
     // Goroutine 1: Handle incoming writes from client
     go s.handleBiDirectionalWrites(stream, &portName, &sessionID, errChan)
-    
+
     // Main: Handle outgoing reads to client
     return s.handleBiDirectionalReads(stream, ctx, errChan, reader, portName)
 }
