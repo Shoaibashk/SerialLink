@@ -1,18 +1,16 @@
 module github.com/Shoaibashk/SerialLink
 
-go 1.24.0
+go 1.25.5
 
 require (
-	github.com/Shoaibashk/SerialLink/api/proto/gen/go v0.0.0
 	github.com/charmbracelet/log v0.4.2
 	github.com/google/uuid v1.6.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	go.bug.st/serial v1.6.4
 	google.golang.org/grpc v1.78.0
+	google.golang.org/protobuf v1.36.11
 )
-
-replace github.com/Shoaibashk/SerialLink/api/proto/gen/go => ./api/proto/gen/go
 
 require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
@@ -44,5 +42,4 @@ require (
 	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251222181119-0a764e51fe1b // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
 )

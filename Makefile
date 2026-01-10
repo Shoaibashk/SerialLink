@@ -43,7 +43,8 @@ vet:
 
 proto:
 	git submodule update --remote --recursive
-	cd .\api\proto\ && pwsh -NoProfile -File .\generate.ps1 -Target go -Clean
+	cd .\SerialLink-Proto\ && pwsh -NoProfile -File .\generate.ps1 -Target go -Clean
+	pwsh -NoProfile -Command "Copy-Item .\SerialLink-Proto\gen\go\ .\api\gen\go\ -Recurse -Force"
 	@echo Proto files generated
 
 install-tools:

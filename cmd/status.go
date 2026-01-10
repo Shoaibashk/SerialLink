@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"time"
 
-	pb "github.com/Shoaibashk/SerialLink/api/proto/gen/go/seriallink/v1"
+	pb "github.com/Shoaibashk/SerialLink/api/gen/go/seriallink/v1"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

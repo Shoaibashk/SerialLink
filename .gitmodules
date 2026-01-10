@@ -1,4 +1,4 @@
-[submodule "api/proto"]
-	path = api/proto
+[submodule "SerialLink-Proto"]
+	path = SerialLink-Proto
 	url = https://github.com/Shoaibashk/SerialLink-Proto
 	branch = main
