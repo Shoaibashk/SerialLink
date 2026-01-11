@@ -34,7 +34,6 @@ type Config struct {
 	TLS     TLSConfig     `mapstructure:"tls" yaml:"tls"`
 	Serial  SerialConfig  `mapstructure:"serial" yaml:"serial"`
 	Logging LoggingConfig `mapstructure:"logging" yaml:"logging"`
-	Service ServiceConfig `mapstructure:"service" yaml:"service"`
 }
 
 // ServerConfig holds server-related settings
@@ -82,16 +81,6 @@ type LoggingConfig struct {
 	Compress   bool   `mapstructure:"compress" yaml:"compress"`
 }
 
-// ServiceConfig holds system service settings
-type ServiceConfig struct {
-	Name          string `mapstructure:"name" yaml:"name"`
-	DisplayName   string `mapstructure:"display_name" yaml:"display_name"`
-	Description   string `mapstructure:"description" yaml:"description"`
-	AutoStart     bool   `mapstructure:"auto_start" yaml:"auto_start"`
-	RestartPolicy string `mapstructure:"restart_policy" yaml:"restart_policy"`
-	RestartDelay  int    `mapstructure:"restart_delay" yaml:"restart_delay"`
-}
-
 // DefaultConfig returns a configuration with sensible defaults
 func DefaultConfig() *Config {
 	return &Config{
@@ -123,14 +112,6 @@ func DefaultConfig() *Config {
 			MaxBackups: 3,
 			MaxAge:     30,
 			Compress:   true,
-		},
-		Service: ServiceConfig{
-			Name:          "seriallink",
-			DisplayName:   "SerialLink Agent",
-			Description:   "Cross-platform serial port background service",
-			AutoStart:     true,
-			RestartPolicy: "on-failure",
-			RestartDelay:  5,
 		},
 	}
 }
@@ -194,13 +175,6 @@ func SetDefaults() {
 	viper.SetDefault("logging.max_age", defaults.Logging.MaxAge)
 	viper.SetDefault("logging.compress", defaults.Logging.Compress)
 
-	// Service defaults
-	viper.SetDefault("service.name", defaults.Service.Name)
-	viper.SetDefault("service.display_name", defaults.Service.DisplayName)
-	viper.SetDefault("service.description", defaults.Service.Description)
-	viper.SetDefault("service.auto_start", defaults.Service.AutoStart)
-	viper.SetDefault("service.restart_policy", defaults.Service.RestartPolicy)
-	viper.SetDefault("service.restart_delay", defaults.Service.RestartDelay)
 }
 
 // Load reads configuration from viper and returns a Config struct
@@ -263,7 +237,6 @@ func (c *Config) toMap() map[string]interface{} {
 		"tls":     c.TLS,
 		"serial":  c.Serial,
 		"logging": c.Logging,
-		"service": c.Service,
 	}
 }
 

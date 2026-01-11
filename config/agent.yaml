@@ -65,23 +65,3 @@ logging:
 
   # Compress rotated files
   compress: true
-
-# Service configuration (platform-specific)
-service:
-  # Service name for Windows/systemd
-  name: "seriallink"
-
-  # Display name for Windows services
-  display_name: "SerialLink Agent"
-
-  # Service description
-  description: "Cross-platform serial port background service"
-
-  # Auto-start on boot
-  auto_start: true
-
-  # Restart policy: always, on-failure, never
-  restart_policy: "on-failure"
-
-  # Restart delay in seconds
-  restart_delay: 5
